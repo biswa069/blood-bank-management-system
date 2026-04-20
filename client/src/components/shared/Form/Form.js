@@ -15,7 +15,7 @@ const Form = ({ formType, submitBtn, formTitle }) => {
     const [phone, setPhone] = useState("");
     const [bloodGroup, setBloodGroup] = useState("");
     return (
-        <div>
+        <div className="auth-card">
             <form
                 onSubmit={(e) => {
                     if (formType === "login")
@@ -36,9 +36,8 @@ const Form = ({ formType, submitBtn, formTitle }) => {
                         );
                 }}
             >
-                <h1 className="text-center">{formTitle}</h1>
-                <hr />
-                <div className="d-flex mb-3">
+                <h2 className="text-center mb-4 font-weight-bold" style={{color: 'var(--text-main)', letterSpacing: '1px'}}>{formTitle}</h2>
+                <div className="d-flex mb-4 gap-3 justify-content-center flex-wrap">
                     <div className="form-check">
                         <input
                             type="radio"
@@ -49,11 +48,11 @@ const Form = ({ formType, submitBtn, formTitle }) => {
                             onChange={(e) => setRole(e.target.value)}
                             defaultChecked
                         />
-                        <label htmlFor="adminRadio" className="form-check-label">
+                        <label htmlFor="donorRadio" className="form-check-label">
                             Donor
                         </label>
                     </div>
-                    <div className="form-check ms-2">
+                    <div className="form-check">
                         <input
                             type="radio"
                             className="form-check-input"
@@ -66,7 +65,7 @@ const Form = ({ formType, submitBtn, formTitle }) => {
                             Admin
                         </label>
                     </div>
-                    <div className="form-check ms-2">
+                    <div className="form-check">
                         <input
                             type="radio"
                             className="form-check-input"
@@ -79,7 +78,7 @@ const Form = ({ formType, submitBtn, formTitle }) => {
                             Hospital
                         </label>
                     </div>
-                    <div className="form-check ms-2">
+                    <div className="form-check">
                         <input
                             type="radio"
                             className="form-check-input"
@@ -222,21 +221,21 @@ const Form = ({ formType, submitBtn, formTitle }) => {
                     }
                 })()}
 
-                <div className="d-flex flex-row justify-content-between">
-                    {formType === "login" ? (
-                        <p>
-                            Not registered yet ? Register
-                            <Link to="/register"> Here !</Link>
-                        </p>
-                    ) : (
-                        <p>
-                            Already registered?
-                            <Link to="/login"> Login !</Link>
-                        </p>
-                    )}
-                    <button className="btn btn-primary" type="submit">
+                <div className="d-flex flex-column mt-4">
+                    <button className="btn btn-primary w-100 mb-3" type="submit">
                         {submitBtn}
                     </button>
+                    {formType === "login" ? (
+                        <p className="text-center text-muted">
+                            Not registered yet?
+                            <Link to="/register" className="ms-1 font-weight-bold">Register Here!</Link>
+                        </p>
+                    ) : (
+                        <p className="text-center text-muted">
+                            Already registered?
+                            <Link to="/login" className="ms-1 font-weight-bold">Login!</Link>
+                        </p>
+                    )}
                 </div>
             </form>
         </div>

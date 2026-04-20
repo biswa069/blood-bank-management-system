@@ -103,41 +103,48 @@ const HomePage = () => {
                 <Spinner />
             ) : (
                 <>
-                    <div className="container">
-                        <h4
-                            className="ms-4"
-                            data-bs-toggle="modal"
-                            data-bs-target="#staticBackdrop"
-                            style={{ cursor: "pointer" }}
-                        >
-                            <i className="fa-solid fa-plus text-success py-4"></i>
-                            Add Inventory
-                        </h4>
-                        <table className="table ">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Blood Group</th>
-                                    <th scope="col">Inventory Type</th>
-                                    <th scope="col">Quantity</th>
-                                    <th scope="col">{user?.role === "hospital" ? "From" : "Donor Email"}</th>
-                                    <th scope="col">TIme & Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data?.map((record) => (
-                                    <tr key={record._id}>
-                                        <td>{record.bloodGroup}</td>
-                                        <td>{record.inventoryType}</td>
-                                        <td>{record.quantity} (ML)</td>
-                                        <td>{record.email}</td>
-                                        <td>
-                                            {moment(record.createdAt).format("DD/MM/YYYY hh:mm A")}
-                                        </td>
+                    <div className="container mt-4">
+                        <div className="d-flex justify-content-between align-items-center mb-4 mt-2">
+                            <h2 style={{color: 'var(--text-main)', fontWeight: '600', margin: 0}}>Inventory Dashboard</h2>
+                            <button
+                                className="add-inventory-btn m-0"
+                                data-bs-toggle="modal"
+                                data-bs-target="#staticBackdrop"
+                            >
+                                <i className="fa-solid fa-plus py-1"></i> Add Inventory
+                            </button>
+                        </div>
+                        
+                        <div className="table-container">
+                            <table className="table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Blood Group</th>
+                                        <th scope="col">Inventory Type</th>
+                                        <th scope="col">Quantity</th>
+                                        <th scope="col">{user?.role === "hospital" ? "From" : "Donor Email"}</th>
+                                        <th scope="col">Time & Date</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-
+                                </thead>
+                                <tbody>
+                                    {data?.map((record) => (
+                                        <tr key={record._id}>
+                                            <td>
+                                                <span className="badge bg-danger rounded-pill px-3 py-2">
+                                                    {record.bloodGroup}
+                                                </span>
+                                            </td>
+                                            <td style={{textTransform: 'capitalize'}}>{record.inventoryType}</td>
+                                            <td><strong>{record.quantity}</strong> <span className="text-muted">(ML)</span></td>
+                                            <td>{record.email}</td>
+                                            <td>
+                                                {moment(record.createdAt).format("DD/MM/YYYY hh:mm A")}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                         <Modal />
                     </div>
                 </>

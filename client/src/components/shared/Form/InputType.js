@@ -10,7 +10,7 @@ const InputType = ({
 }) => {
     return (
         <>
-            <div className="mb-1">
+            <div className="mb-3">
                 <label htmlFor={labelFor} className="form-label">
                     {labelText}
                 </label>
@@ -20,6 +20,7 @@ const InputType = ({
                     name={name}
                     value={value}
                     onChange={onChange}
+                    placeholder={labelText}
                 />
             </div>
         </>

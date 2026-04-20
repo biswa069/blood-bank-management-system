@@ -9,14 +9,14 @@ const Analytics = () => {
     const [data, setData] = useState([]);
     const [inventoryData, setInventoryData] = useState([]);
     const colors = [
-        "#884A39",
-        "#C38154",
-        "#FFC26F",
-        "#4F709C",
-        "#4942E4",
-        "#0079FF",
-        "#FF0060",
-        "#22A699",
+        "#EF4444", // Red
+        "#3B82F6", // Blue
+        "#10B981", // Emerald
+        "#F59E0B", // Amber
+        "#8B5CF6", // Violet
+        "#EC4899", // Pink
+        "#06B6D4", // Cyan
+        "#6366F1", // Indigo
     ];
     //GET BLOOD GROUP DATA
     const getBloodGroupData = async () => {
@@ -72,53 +72,62 @@ const Analytics = () => {
     return (
         <>
             <Header />
-            <div className="d-flex flex-row flex-wrap">
-                {data?.map((record, i) => (
-                    <div
-                        className="card m-2 p-1"
-                        key={i}
-                        style={{ width: "18rem", backgroundColor: `${colors[i]}` }}
-                    >
-                        <div className="card-body">
-                            <h1 className="card-title bg-light text-dark text-center mb-3">
+            <div className="container mt-4 mb-5">
+                <div className="d-flex flex-wrap justify-content-center gap-3 mb-5">
+                    {data?.map((record, i) => (
+                        <div
+                            className="table-container p-4 d-flex flex-column"
+                            key={i}
+                            style={{ width: "20rem", borderTop: `4px solid ${colors[i % colors.length]}` }}
+                        >
+                            <h2 className="text-center mb-4 fw-bold" style={{ color: colors[i % colors.length] }}>
                                 {record.bloodGroup}
-                            </h1>
-                            <p className="card-text">
-                                Total In : <b>{record.totalIn}</b> (ML)
-                            </p>
-                            <p className="card-text">
-                                Total Out : <b>{record.totalOut}</b> (ML)
-                            </p>
+                            </h2>
+                            <div className="d-flex justify-content-between mb-2">
+                                <span className="text-muted">Total In:</span>
+                                <span><b>{record.totalIn}</b> ML</span>
+                            </div>
+                            <div className="d-flex justify-content-between mb-4">
+                                <span className="text-muted">Total Out:</span>
+                                <span><b>{record.totalOut}</b> ML</span>
+                            </div>
+                            <div className="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
+                                <span className="text-muted fw-medium">Available</span>
+                                <b className="fs-5" style={{ color: 'var(--text-main)' }}>{record.availabeBlood} ML</b>
+                            </div>
                         </div>
-                        <div className="card-footer text-light bg-dark text-center">
-                            Total Available : <b>{record.availabeBlood}</b> (ML)
-                        </div>
-                    </div>
-                ))}
-            </div>
-            <div className="container my-4">
-                <h2 className="text-primary border-bottom pb-2">Recent Blood Transactions</h2>
-                <div className="table-responsive mt-3">
-                    <table className="table table-hover table-bordered table-striped shadow-sm">
-                        <thead className="table-dark text-center">
+                    ))}
+                </div>
+
+                <div className="mb-3">
+                    <h2 style={{color: 'var(--text-main)', fontWeight: '600', margin: 0}}>Recent Blood Transactions</h2>
+                </div>
+                
+                <div className="table-container">
+                    <table className="table">
+                        <thead>
                             <tr>
-                                <th>Blood Group</th>
-                                <th>Inventory Type</th>
-                                <th>Quantity</th>
-                                <th>{user?.role === "hospital" ? "From" : "Donor Email"}</th>
-                                <th>Time & Date</th>
+                                <th scope="col">Blood Group</th>
+                                <th scope="col">Inventory Type</th>
+                                <th scope="col">Quantity</th>
+                                <th scope="col">{user?.role === "hospital" ? "From" : "Donor Email"}</th>
+                                <th scope="col">Time & Date</th>
                             </tr>
                         </thead>
-                        <tbody className="text-center align-middle">
+                        <tbody>
                             {inventoryData?.map((record) => (
                                 <tr key={record._id}>
-                                    <td><b>{record.bloodGroup}</b></td>
+                                    <td>
+                                        <span className="badge bg-danger rounded-pill px-3 py-2">
+                                            {record.bloodGroup}
+                                        </span>
+                                    </td>
                                     <td>
                                         <span className={`badge ${record.inventoryType === "in" ? "bg-success" : "bg-danger"}`}>
                                             {record.inventoryType.toUpperCase()}
                                         </span>
                                     </td>
-                                    <td>{record.quantity} (ML)</td>
+                                    <td><strong>{record.quantity}</strong> <span className="text-muted">(ML)</span></td>
                                     <td>{record.email || <i className="text-muted">N/A</i>}</td>
                                     <td>{moment(record.createdAt).format("DD/MM/YYYY hh:mm A")}</td>
                                 </tr>
