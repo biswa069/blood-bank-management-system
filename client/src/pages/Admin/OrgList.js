@@ -3,6 +3,8 @@ import Layout from "../../components/shared/Layout/Layout";
 import moment from "moment";
 import API from "../../services/API";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 
 const OrgList = () => {
     const navigate = useNavigate();
@@ -27,16 +29,25 @@ const OrgList = () => {
     //DELETE FUNCTION
     const handleDelete = async (id) => {
         try {
-            let answer = window.prompt(
-                "Are You Sure Want To Delete This Organisation",
-                "Sure"
-            );
-            if (!answer) return;
-            const { data } = await API.delete(`/admin/delete/${id}`);
-            alert(data?.message);
-            window.location.reload();
+            const result = await Swal.fire({
+                title: 'Are you sure?',
+                text: "You won't be able to revert this! The organisation will be permanently deleted.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!'
+            });
+
+            if (result.isConfirmed) {
+                const { data } = await API.delete(`/admin/delete/${id}`);
+                toast.success(data?.message);
+                // Remove the item from local state so we don't have to reload the page
+                setData((prevData) => prevData.filter((record) => record._id !== id));
+            }
         } catch (error) {
             console.log(error);
+            toast.error("Failed to delete the record");
         }
     };
 

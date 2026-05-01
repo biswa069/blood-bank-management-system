@@ -1,15 +1,32 @@
+import { toast } from "react-toastify";
 import React from "react";
-import { BiDonateBlood, BiUserCircle } from "react-icons/bi";
+import { BiDonateBlood, BiUserCircle, BiMoon, BiSun } from "react-icons/bi";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 const Header = () => {
     const { user } = useSelector((state) => state.auth);
     const navigate = useNavigate();
     const location = useLocation();
+    
+    // Theme toggle state
+    const [theme, setTheme] = useState(
+        localStorage.getItem("theme") || "light"
+    );
+
+    useEffect(() => {
+        document.documentElement.setAttribute("data-theme", theme);
+        localStorage.setItem("theme", theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+    };
+
     // logout handler
     const handleLogout = () => {
         localStorage.clear();
-        alert("Logout Successfully");
+        toast.success("Logged out successfully");
         navigate("/login");
     };
 
@@ -43,6 +60,16 @@ const Header = () => {
                                 </Link>
                             </li>
                         )}
+                        <li className="nav-item mx-3 d-flex align-items-center">
+                            <button
+                                className="btn btn-outline-secondary border-0 p-2 d-flex align-items-center justify-content-center"
+                                onClick={toggleTheme}
+                                style={{ borderRadius: "50%", width: "40px", height: "40px" }}
+                                title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+                            >
+                                {theme === "light" ? <BiMoon size={22} /> : <BiSun size={22} color="white" />}
+                            </button>
+                        </li>
                         <li className="nav-item mx-3">
                             <button className="btn btn-danger" onClick={handleLogout}>
                                 Logout
