@@ -275,11 +275,13 @@
 const mongoose = require("mongoose");
 const inventoryModel = require("../models/inventoryModel");
 const userModel = require("../models/userModel");
+const csv = require("csv-parser");
+const { Readable } = require("stream");
 
 // CREATE INVENTORY
 const createInventoryController = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, inventoryType } = req.body;
         
         // 1. Validation - Return specific error instead of throwing to catch block
         const user = await userModel.findOne({ email });
@@ -290,7 +292,12 @@ const createInventoryController = async (req, res) => {
             });
         }
         // Blood group validation for inventory "in" (donation)
-        if (req.body.inventoryType === "in") {
+        if (inventoryType === "in") {
+            // --- NEW SECURITY RULE ---
+            // A human can only donate 1 unit at a time.
+            req.body.quantity = 1;
+            req.body.donor = user?._id;
+
             const requestedBloodGroup = req.body.bloodGroup;
             const donorBloodGroup = user.bloodGroup;
 
@@ -305,7 +312,7 @@ const createInventoryController = async (req, res) => {
             }
         }
 
-        if (req.body.inventoryType == "out") {
+        if (inventoryType == "out") {
             req.body.hospital = user?._id;
 
             // Determine sender role and validate quantity accordingly
@@ -343,7 +350,7 @@ const createInventoryController = async (req, res) => {
                 if (available < requestedQuantityOfBlood) {
                     return res.status(400).send({
                         success: false,
-                        message: `Only ${available}ML of ${requestedBloodGroup.toUpperCase()} is available`,
+                        message: `Only ${available} Units of ${requestedBloodGroup.toUpperCase()} is available`,
                     });
                 }
             } else if (sender?.role === "hospital") {
@@ -407,14 +414,12 @@ const createInventoryController = async (req, res) => {
                 if (available < requestedQuantityOfBlood) {
                     return res.status(400).send({
                         success: false,
-                        message: `Insufficient blood available. You have ${available}ML of ${requestedBloodGroup.toUpperCase()} available to transfer.`,
+                        message: `Insufficient blood available. You have ${available} Units of ${requestedBloodGroup.toUpperCase()} available to transfer.`,
                     });
                 }
             }
         }
-        else {
-            req.body.donor = user?._id;
-        }
+
 
         //save record
         const inventory = new inventoryModel(req.body);
@@ -691,6 +696,93 @@ const getInventoryReceivedController = async (req, res) => {
     }
 };
 
+// BULK IMPORT INVENTORY
+const bulkImportInventoryController = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).send({ success: false, message: "No CSV file uploaded." });
+        }
+
+        const results = [];
+        const stream = Readable.from(req.file.buffer);
+
+        stream
+            .pipe(csv())
+            .on("data", (data) => results.push(data))
+            .on("end", async () => {
+                let successCount = 0;
+                const errors = [];
+
+                for (let i = 0; i < results.length; i++) {
+                    const row = results[i];
+                    const rowNum = i + 1; // For human readable error tracking
+
+                    const email = row.email?.trim();
+                    const bloodGroup = row.bloodGroup?.trim();
+
+                    if (!email || !bloodGroup) {
+                        errors.push(`Row ${rowNum}: Missing email or bloodGroup.`);
+                        continue;
+                    }
+
+                    try {
+                        const user = await userModel.findOne({ email });
+                        if (!user) {
+                            errors.push(`Row ${rowNum}: User ${email} not found.`);
+                            continue;
+                        }
+                        
+                        if (user.role !== "donor") {
+                            errors.push(`Row ${rowNum}: User ${email} is not a donor.`);
+                            continue;
+                        }
+
+                        if (user.bloodGroup !== bloodGroup) {
+                            errors.push(`Row ${rowNum}: Blood group mismatch. Donor is ${user.bloodGroup}, but CSV has ${bloodGroup}.`);
+                            continue;
+                        }
+
+                        const inventory = new inventoryModel({
+                            inventoryType: "in",
+                            bloodGroup,
+                            quantity: 1, // Fixed 1 unit for bulk imports
+                            email,
+                            organisation: req.userId,
+                            donor: user._id,
+                        });
+                        
+                        await inventory.save();
+                        successCount++;
+                    } catch (err) {
+                        errors.push(`Row ${rowNum}: Processing error - ${err.message}`);
+                    }
+                }
+
+                return res.status(200).send({
+                    success: true,
+                    message: "Bulk import processing complete.",
+                    summary: {
+                        totalProcessed: results.length,
+                        successCount,
+                        errors,
+                    },
+                });
+            })
+            .on("error", (error) => {
+                console.error("CSV Parse Error:", error);
+                return res.status(500).send({ success: false, message: "Error parsing CSV file.", error });
+            });
+
+    } catch (error) {
+        console.error("Bulk Import Controller Error:", error);
+        return res.status(500).send({
+            success: false,
+            message: "Server error during bulk import.",
+            error,
+        });
+    }
+};
+
 module.exports = {
     createInventoryController,
     getInventoryController,
@@ -701,4 +793,5 @@ module.exports = {
     getInventoryHospitalController,
     getRecentInventoryController,
     getInventoryReceivedController,
+    bulkImportInventoryController,
 };

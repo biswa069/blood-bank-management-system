@@ -114,14 +114,14 @@ const AdminEntityAnalytics = () => {
                                             {record.bloodGroup}
                                         </h1>
                                         <p className="card-text">
-                                            Total In : <b>{record.totalIn}</b> (ML)
+                                            Total In : <b>{record.totalIn}</b> (Units)
                                         </p>
                                         <p className="card-text">
-                                            Total Out : <b>{record.totalOut}</b> (ML)
+                                            Total Out : <b>{record.totalOut}</b> (Units)
                                         </p>
                                     </div>
                                     <div className="card-footer text-light bg-dark text-center">
-                                        Total Available : <b>{record.availabeBlood}</b> (ML)
+                                        Total Available : <b>{record.availabeBlood}</b> (Units)
                                     </div>
                                 </div>
                             ))}
@@ -152,7 +152,7 @@ const AdminEntityAnalytics = () => {
                                                         {record.inventoryType.toUpperCase()}
                                                     </span>
                                                 </td>
-                                                <td>{record.quantity} (ML)</td>
+                                                <td>{record.quantity} (Units)</td>
                                                 <td>{record.email || "N/A"}</td>
                                                 <td>{moment(record.createdAt).format("DD/MM/YYYY hh:mm A")}</td>
                                             </tr>

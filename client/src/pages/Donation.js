@@ -55,7 +55,7 @@ const Donation = () => {
                             {data?.map((record) => (
                                 <tr key={record._id}>
                                     <td>{record.bloodGroup}</td>
-                                    <td>{record.quantity} ML</td>
+                                    <td>{record.quantity} Units</td>
                                     <td>
                                         {record.organisation?.hospitalName || record.organisation?.organisationName || "N/A"}
                                     </td>
@@ -87,7 +87,7 @@ const Donation = () => {
                         {data?.map((record) => (
                             <tr key={record._id}>
                                 <td>{record.bloodGroup}</td>
-                                <td>{record.quantity} ML</td>
+                                <td>{record.quantity} Units</td>
                                 <td>{record.fromEmail || record.email || "N/A"}</td>
                                 <td>{moment(record.createdAt).format("DD/MM/YYYY hh:mm A")}</td>
                             </tr>

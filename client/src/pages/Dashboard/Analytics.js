@@ -85,15 +85,15 @@ const Analytics = () => {
                             </h2>
                             <div className="d-flex justify-content-between mb-2">
                                 <span className="text-muted">Total In:</span>
-                                <span><b>{record.totalIn}</b> ML</span>
+                                <span><b>{record.totalIn}</b> Units</span>
                             </div>
                             <div className="d-flex justify-content-between mb-4">
                                 <span className="text-muted">Total Out:</span>
-                                <span><b>{record.totalOut}</b> ML</span>
+                                <span><b>{record.totalOut}</b> Units</span>
                             </div>
                             <div className="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
                                 <span className="text-muted fw-medium">Available</span>
-                                <b className="fs-5" style={{ color: 'var(--text-main)' }}>{record.availabeBlood} ML</b>
+                                <b className="fs-5" style={{ color: 'var(--text-main)' }}>{record.availabeBlood} Units</b>
                             </div>
                         </div>
                     ))}
@@ -127,7 +127,7 @@ const Analytics = () => {
                                             {record.inventoryType.toUpperCase()}
                                         </span>
                                     </td>
-                                    <td><strong>{record.quantity}</strong> <span className="text-muted">(ML)</span></td>
+                                    <td><strong>{record.quantity}</strong> <span className="text-muted">(Units)</span></td>
                                     <td>{record.email || <i className="text-muted">N/A</i>}</td>
                                     <td>{moment(record.createdAt).format("DD/MM/YYYY hh:mm A")}</td>
                                 </tr>

@@ -177,7 +177,10 @@ const Modal = ({ onRecordAdded }) => {
             setErrorMsg("");
             setSuccessMsg("");
             
-            if (!bloodGroup || bloodGroup === "Open this select menu" || !quantity || !email) {
+            // Force quantity to 1 if it's a donation, otherwise parse the typed quantity
+            const finalQuantity = inventoryType === "in" ? 1 : Number(quantity);
+
+            if (!bloodGroup || bloodGroup === "Open this select menu" || !finalQuantity || !email) {
                 return setErrorMsg("Please provide all fields correctly.");
             }
             
@@ -187,7 +190,7 @@ const Modal = ({ onRecordAdded }) => {
                 organisation: user?._id,
                 inventoryType,
                 bloodGroup,
-                quantity,
+                quantity: finalQuantity,
             });
             
             if (data?.success) {
@@ -300,13 +303,21 @@ const Modal = ({ onRecordAdded }) => {
                             onChange={(e) => setEmail(e.target.value)}
                         />
 
-                        <InputType
-                            labelText={"Quantity (ML)"}
-                            labelFor={"quantity"}
-                            inputType={"Number"}
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                        />
+                        {/* Quantity Input Field */}
+                        <div className="mb-3">
+                            <label className="form-label fw-semibold">
+                                Quantity (Units) 
+                                {inventoryType === "in" && <span className="text-muted fw-normal ms-2" style={{fontSize: "0.8rem"}}>*Standard donation is 1 Unit</span>}
+                            </label>
+                            <input
+                                type="number"
+                                className="form-control"
+                                value={inventoryType === "in" ? 1 : quantity}
+                                onChange={(e) => setQuantity(e.target.value)}
+                                disabled={inventoryType === "in"} // Locks the field for donations!
+                                min={1}
+                            />
+                        </div>
                     </div>
                     <div className="modal-footer">
                         <button

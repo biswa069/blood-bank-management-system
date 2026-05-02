@@ -321,6 +321,7 @@ import Spinner from "../components/shared/Spinner";
 import Layout from "../components/shared/Layout/Layout";
 import LayoutNoSidebar from "../components/shared/Layout/LayoutNoSidebar";
 import Modal from "../components/shared/modal/Modal";
+import BulkImportModal from "../components/shared/modal/BulkImportModal";
 import API from "../services/API";
 import moment from "moment";
 
@@ -404,7 +405,7 @@ const HomePage = () => {
                                 {donorData?.map((record) => (
                                     <tr key={record._id}>
                                         <td>{record.bloodGroup}</td>
-                                        <td>{record.quantity} ML</td>
+                                        <td>{record.quantity} Units</td>
                                         <td>
                                             {record.organisation?.hospitalName || record.organisation?.organisationName || "N/A"}
                                         </td>
@@ -428,13 +429,25 @@ const HomePage = () => {
                     <div className="container mt-4">
                         <div className="d-flex justify-content-between align-items-center mb-4 mt-2">
                             <h2 style={{color: 'var(--text-main)', fontWeight: '600', margin: 0}}>Inventory Dashboard</h2>
-                            <button
-                                className="add-inventory-btn m-0"
-                                data-bs-toggle="modal"
-                                data-bs-target="#staticBackdrop"
-                            >
-                                <i className="fa-solid fa-plus py-1"></i> Add Inventory
-                            </button>
+                            <div>
+                                {user?.role === "organisation" && (
+                                    <button
+                                        className="add-inventory-btn m-0 me-2"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#bulkImportModal"
+                                        style={{ backgroundColor: '#10B981', borderColor: '#10B981' }}
+                                    >
+                                        <i className="fa-solid fa-file-csv py-1 me-1"></i> Bulk Import
+                                    </button>
+                                )}
+                                <button
+                                    className="add-inventory-btn m-0"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#staticBackdrop"
+                                >
+                                    <i className="fa-solid fa-plus py-1"></i> Add Inventory
+                                </button>
+                            </div>
                         </div>
                         
                         <div className="table-container">
@@ -457,7 +470,7 @@ const HomePage = () => {
                                                 </span>
                                             </td>
                                             <td style={{textTransform: 'capitalize'}}>{record.inventoryType}</td>
-                                            <td><strong>{record.quantity}</strong> <span className="text-muted">(ML)</span></td>
+                                            <td><strong>{record.quantity}</strong> <span className="text-muted">(Units)</span></td>
                                             <td>{record.email}</td>
                                             <td>
                                                 {moment(record.createdAt).format("DD/MM/YYYY hh:mm A")}
@@ -468,6 +481,7 @@ const HomePage = () => {
                             </table>
                         </div>
                         <Modal onRecordAdded={getBloodRecords} />
+                        <BulkImportModal onImportComplete={getBloodRecords} />
                     </div>
                 </>
             )}

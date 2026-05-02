@@ -6,9 +6,12 @@ const { createInventoryController, getInventoryController, getDonorsController, 
     getInventoryHospitalController,
     getRecentInventoryController,
     getInventoryReceivedController,
+    bulkImportInventoryController,
 } = require("../controllers/inventoryController");
+const multer = require("multer");
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 router.post("/create-inventory", authMiddleware, createInventoryController);
 
@@ -46,6 +49,14 @@ router.get(
     "/get-inventory-received",
     authMiddleware,
     getInventoryReceivedController
+);
+
+// BULK IMPORT ROUTE
+router.post(
+    "/bulk-import",
+    authMiddleware,
+    upload.single("file"),
+    bulkImportInventoryController
 );
 
 module.exports = router;

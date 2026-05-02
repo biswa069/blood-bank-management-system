@@ -15,6 +15,14 @@ const registerController = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(req.body.password, salt);
         req.body.password = hashedPassword;
+        
+        // Remove empty strings to prevent Mongoose validation errors (like enum fails on empty bloodGroup)
+        Object.keys(req.body).forEach(key => {
+            if (req.body[key] === "") {
+                delete req.body[key];
+            }
+        });
+
         //rest data
         const user = new userModel(req.body);
         await user.save();
