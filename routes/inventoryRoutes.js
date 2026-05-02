@@ -7,6 +7,7 @@ const { createInventoryController, getInventoryController, getDonorsController, 
     getRecentInventoryController,
     getInventoryReceivedController,
     bulkImportInventoryController,
+    getExpiringInventoryController,
 } = require("../controllers/inventoryController");
 const multer = require("multer");
 
@@ -58,5 +59,7 @@ router.post(
     upload.single("file"),
     bulkImportInventoryController
 );
+// GET EXPIRING SOON INVENTORY
+router.get("/expiring-soon", authMiddleware, getExpiringInventoryController);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 const inventoryModel = require("../models/inventoryModel");
 const mongoose = require("mongoose");
+const axios = require("axios");
 //GET BLOOD DATA
 const bloodGroupDetailsContoller = async (req, res) => {
     try {
@@ -147,4 +148,36 @@ const bloodGroupDetailsHospitalContoller = async (req, res) => {
     }
 };
 
-module.exports = { bloodGroupDetailsContoller, bloodGroupDetailsHospitalContoller };
+// GET AI FORECAST
+const getAIForecastController = async (req, res) => {
+    try {
+        const { bloodGroup } = req.body;
+        if (!bloodGroup) {
+            return res.status(400).send({
+                success: false,
+                message: "Please provide a bloodGroup",
+            });
+        }
+
+        // Encode the blood group (e.g. A+ -> A%2B)
+        const encodedBloodGroup = encodeURIComponent(bloodGroup);
+        const pythonApiUrl = `http://127.0.0.1:8000/inventory_suggestion/${encodedBloodGroup}`;
+
+        const response = await axios.get(pythonApiUrl);
+
+        return res.status(200).send({
+            success: true,
+            message: "AI Forecast generated successfully",
+            forecast: response.data,
+        });
+    } catch (error) {
+        console.error("AI Forecast Error:", error.message);
+        return res.status(500).send({
+            success: false,
+            message: "AI Microservice is currently unreachable or encountered an error.",
+            error: error.response?.data || error.message,
+        });
+    }
+};
+
+module.exports = { bloodGroupDetailsContoller, bloodGroupDetailsHospitalContoller, getAIForecastController };

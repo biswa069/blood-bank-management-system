@@ -2,12 +2,19 @@ import React, { useState, useEffect } from "react";
 import Header from "../../components/shared/Layout/Header";
 import API from "./../../services/API";
 import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
+import ExpiringAlerts from "../../components/shared/ExpiringAlerts";
+import Spinner from "../../components/shared/Spinner";
 import moment from "moment";
 
 const Analytics = () => {
     const { user } = useSelector((state) => state.auth);
     const [data, setData] = useState([]);
     const [inventoryData, setInventoryData] = useState([]);
+    const [selectedBloodGroup, setSelectedBloodGroup] = useState("O+");
+    const [forecastData, setForecastData] = useState(null);
+    const [isForecasting, setIsForecasting] = useState(false);
+    
     const colors = [
         "#EF4444", // Red
         "#3B82F6", // Blue
@@ -69,10 +76,87 @@ const Analytics = () => {
     useEffect(() => {
         getBloodRecords();
     }, [user]);
+
+    // AI Forecast Function
+    const handleAIForecast = async () => {
+        try {
+            setIsForecasting(true);
+            setForecastData(null);
+            const { data } = await API.post("/analytics/ai-forecast", { bloodGroup: selectedBloodGroup });
+            if (data?.success) {
+                setForecastData(data.forecast);
+                toast.success("AI Forecast generated successfully!");
+            }
+        } catch (error) {
+            console.log(error);
+            toast.error(error.response?.data?.message || "Failed to connect to AI Microservice.");
+        } finally {
+            setIsForecasting(false);
+        }
+    };
+
     return (
         <>
             <Header />
             <div className="container mt-4 mb-5">
+                <ExpiringAlerts />
+                
+                {/* AI Forecast Section */}
+                <div className="table-container p-4 mb-5 mt-4" style={{ borderTop: "4px solid #8B5CF6" }}>
+                    <h3 className="fw-bold mb-3" style={{ color: "#8B5CF6" }}><i className="fa-solid fa-robot me-2"></i> XGBoost AI Demand Forecast</h3>
+                    <p className="text-muted">Select a blood group to generate a 24-hour demand prediction using our machine learning model.</p>
+                    
+                    <div className="d-flex gap-3 align-items-center mb-4">
+                        <select 
+                            className="form-select" 
+                            style={{ width: "200px" }}
+                            value={selectedBloodGroup}
+                            onChange={(e) => setSelectedBloodGroup(e.target.value)}
+                        >
+                            {["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"].map((bg) => (
+                                <option key={bg} value={bg}>{bg}</option>
+                            ))}
+                        </select>
+                        <button 
+                            className="btn btn-primary" 
+                            style={{ backgroundColor: "#8B5CF6", borderColor: "#8B5CF6" }}
+                            onClick={handleAIForecast}
+                            disabled={isForecasting}
+                        >
+                            {isForecasting ? (
+                                <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Processing...</>
+                            ) : (
+                                <><i className="fa-solid fa-wand-magic-sparkles me-2"></i> Generate Forecast</>
+                            )}
+                        </button>
+                    </div>
+
+                    {forecastData && (
+                        <div className="alert alert-info border-info bg-white shadow-sm mt-3">
+                            <h4 className="alert-heading text-info fw-bold mb-3">Prediction Results for {forecastData.blood_group}</h4>
+                            <div className="row">
+                                <div className="col-md-4 border-end">
+                                    <h5 className="text-muted small">Predicted Demand (Tomorrow)</h5>
+                                    <h2 className="text-primary">{forecastData.predicted_demand_tomorrow} Units</h2>
+                                </div>
+                                <div className="col-md-4 border-end">
+                                    <h5 className="text-muted small">Current Stock Level</h5>
+                                    <h2 className={forecastData.current_stock < forecastData.predicted_demand_tomorrow ? "text-danger" : "text-success"}>
+                                        {forecastData.current_stock} Units
+                                    </h2>
+                                </div>
+                                <div className="col-md-4">
+                                    <h5 className="text-muted small">AI Suggestion</h5>
+                                    <p className="fw-medium m-0">{forecastData.inventory_suggestion}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mb-3">
+                    <h2 style={{color: 'var(--text-main)', fontWeight: '600', margin: 0}}>Current Stock Levels</h2>
+                </div>
                 <div className="d-flex flex-wrap justify-content-center gap-3 mb-5">
                     {data?.map((record, i) => (
                         <div

@@ -320,38 +320,39 @@ const createInventoryController = async (req, res) => {
             const requestedBloodGroup = req.body.bloodGroup;
             const requestedQuantityOfBlood = req.body.quantity;
             if (sender?.role === "organisation") {
-                // Validate using organisation's blood stock (totalIn - totalOut)
+                // --- FEFO LOGIC ---
                 const organisation = new mongoose.Types.ObjectId(req.body.organisation);
-                const totalIn = await inventoryModel.aggregate([
-                    {
-                        $match: {
-                            organisation,
-                            inventoryType: "in",
-                            bloodGroup: requestedBloodGroup,
-                        },
-                    },
-                    {
-                        $group: { _id: null, total: { $sum: "$quantity" } },
-                    },
-                ]);
-                const totalOut = await inventoryModel.aggregate([
-                    {
-                        $match: {
-                            organisation,
-                            inventoryType: "out",
-                            bloodGroup: requestedBloodGroup,
-                        },
-                    },
-                    {
-                        $group: { _id: null, total: { $sum: "$quantity" } },
-                    },
-                ]);
-                const available = (totalIn[0]?.total || 0) - (totalOut[0]?.total || 0);
+                const availableBags = await inventoryModel.find({
+                    organisation,
+                    inventoryType: "in",
+                    bloodGroup: requestedBloodGroup,
+                    availableQuantity: { $gt: 0 },
+                    expiryDate: { $gt: new Date() }
+                }).sort({ expiryDate: 1 });
+                
+                const available = availableBags.reduce((sum, bag) => sum + bag.availableQuantity, 0);
+
                 if (available < requestedQuantityOfBlood) {
                     return res.status(400).send({
                         success: false,
-                        message: `Only ${available} Units of ${requestedBloodGroup.toUpperCase()} is available`,
+                        message: `Only ${available} unexpired Units of ${requestedBloodGroup.toUpperCase()} are available`,
                     });
+                }
+                
+                // FEFO Deduction: deduct from the oldest available bags first
+                let remainingToDeduct = requestedQuantityOfBlood;
+                for (const bag of availableBags) {
+                    if (remainingToDeduct === 0) break;
+                    
+                    if (bag.availableQuantity <= remainingToDeduct) {
+                        remainingToDeduct -= bag.availableQuantity;
+                        bag.availableQuantity = 0;
+                        await bag.save();
+                    } else {
+                        bag.availableQuantity -= remainingToDeduct;
+                        remainingToDeduct = 0;
+                        await bag.save();
+                    }
                 }
             } else if (sender?.role === "hospital") {
                 req.body.sender = req.userId;
@@ -783,6 +784,46 @@ const bulkImportInventoryController = async (req, res) => {
     }
 };
 
+// GET EXPIRING SOON INVENTORY
+const getExpiringInventoryController = async (req, res) => {
+    try {
+        const organisation = req.userId;
+        const fiveDaysFromNow = new Date();
+        fiveDaysFromNow.setDate(fiveDaysFromNow.getDate() + 5);
+
+        const expiringInventory = await inventoryModel.aggregate([
+            {
+                $match: {
+                    organisation: new mongoose.Types.ObjectId(organisation),
+                    inventoryType: "in",
+                    availableQuantity: { $gt: 0 },
+                    expiryDate: { $gt: new Date(), $lte: fiveDaysFromNow },
+                },
+            },
+            {
+                $group: {
+                    _id: "$bloodGroup",
+                    totalExpiring: { $sum: "$availableQuantity" },
+                },
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        return res.status(200).send({
+            success: true,
+            message: "Expiring inventory fetched successfully",
+            data: expiringInventory,
+        });
+    } catch (error) {
+        console.error("Error in Get Expiring Inventory:", error);
+        return res.status(500).send({
+            success: false,
+            message: "Error fetching expiring inventory",
+            error,
+        });
+    }
+};
+
 module.exports = {
     createInventoryController,
     getInventoryController,
@@ -794,4 +835,5 @@ module.exports = {
     getRecentInventoryController,
     getInventoryReceivedController,
     bulkImportInventoryController,
+    getExpiringInventoryController,
 };

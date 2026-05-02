@@ -43,8 +43,29 @@ const inventorySchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "users",
         },
+        expiryDate: {
+            type: Date,
+        },
+        availableQuantity: {
+            type: Number,
+            default: 0,
+        },
     },
     { timestamps: true }
 );
+
+// Pre-save hook for FEFO and Expiry Date logic
+inventorySchema.pre('save', function (next) {
+    if (this.isNew && this.inventoryType === 'in') {
+        // Set expiry date to 35 days from now
+        const expiry = new Date();
+        expiry.setDate(expiry.getDate() + 35);
+        this.expiryDate = expiry;
+
+        // Initialize available quantity
+        this.availableQuantity = this.quantity;
+    }
+    next();
+});
 
 module.exports = mongoose.model("Inventory", inventorySchema);
