@@ -278,7 +278,8 @@ const userModel = require("../models/userModel");
 const csv = require("csv-parser");
 const { Readable } = require("stream");
 
-// CREATE INVENTORY
+const { sendNotification } = require("../services/notificationService");
+
 const createInventoryController = async (req, res) => {
     try {
         const { email, inventoryType } = req.body;
@@ -320,8 +321,28 @@ const createInventoryController = async (req, res) => {
             const requestedBloodGroup = req.body.bloodGroup;
             const requestedQuantityOfBlood = req.body.quantity;
             if (sender?.role === "organisation") {
-                // --- FEFO LOGIC ---
+                // --- STRICT VALIDATION (Total IN - Total OUT) ---
                 const organisation = new mongoose.Types.ObjectId(req.body.organisation);
+                
+                const totalInAgg = await inventoryModel.aggregate([
+                    { $match: { organisation, inventoryType: "in", bloodGroup: requestedBloodGroup } },
+                    { $group: { _id: null, total: { $sum: "$quantity" } } }
+                ]);
+                const totalOutAgg = await inventoryModel.aggregate([
+                    { $match: { organisation, inventoryType: "out", bloodGroup: requestedBloodGroup } },
+                    { $group: { _id: null, total: { $sum: "$quantity" } } }
+                ]);
+                
+                const exactCurrentStock = (totalInAgg[0]?.total || 0) - (totalOutAgg[0]?.total || 0);
+
+                if (exactCurrentStock < requestedQuantityOfBlood) {
+                    return res.status(400).send({
+                        success: false,
+                        message: `Insufficient stock! You only have ${exactCurrentStock} units of ${requestedBloodGroup.toUpperCase()} available. Cannot fulfill request for ${requestedQuantityOfBlood} units.`,
+                    });
+                }
+                
+                // --- FEFO LOGIC ---
                 const availableBags = await inventoryModel.find({
                     organisation,
                     inventoryType: "in",
@@ -329,15 +350,6 @@ const createInventoryController = async (req, res) => {
                     availableQuantity: { $gt: 0 },
                     expiryDate: { $gt: new Date() }
                 }).sort({ expiryDate: 1 });
-                
-                const available = availableBags.reduce((sum, bag) => sum + bag.availableQuantity, 0);
-
-                if (available < requestedQuantityOfBlood) {
-                    return res.status(400).send({
-                        success: false,
-                        message: `Only ${available} unexpired Units of ${requestedBloodGroup.toUpperCase()} are available`,
-                    });
-                }
                 
                 // FEFO Deduction: deduct from the oldest available bags first
                 let remainingToDeduct = requestedQuantityOfBlood;
@@ -352,6 +364,62 @@ const createInventoryController = async (req, res) => {
                         bag.availableQuantity -= remainingToDeduct;
                         remainingToDeduct = 0;
                         await bag.save();
+                    }
+                }
+
+                // --- URGENT DEMAND ALERT ---
+                const stockAfterDeduction = exactCurrentStock - requestedQuantityOfBlood;
+                const CRITICAL_THRESHOLD = 5;
+                if (stockAfterDeduction < CRITICAL_THRESHOLD) {
+                    try {
+                        // Find organisation details to get the city
+                        const orgData = await userModel.findById(organisation);
+                        const orgCity = orgData?.city;
+
+                        const ninetyDaysAgo = new Date();
+                        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+                        // Query for eligible donors (90-Day Rule)
+                        const query = {
+                            role: 'donor',
+                            bloodGroup: requestedBloodGroup,
+                            $or: [
+                                { lastDonationDate: null },
+                                { lastDonationDate: { $lte: ninetyDaysAgo } }
+                            ]
+                        };
+
+                        // Match organisation's city if available
+                        if (orgCity) {
+                            query.city = { $regex: new RegExp(`^${orgCity}$`, 'i') };
+                        }
+
+                        const eligibleDonors = await userModel.find(query);
+                        console.log(`Urgent Alert: Found ${eligibleDonors.length} eligible donors for ${requestedBloodGroup} in city: ${orgCity || 'All'}`);
+
+                        for (const donor of eligibleDonors) {
+                            if (donor.email) {
+                                console.log(`Urgent Alert: Sending email to ${donor.email}`);
+                                await sendNotification({
+                                    toEmail: donor.email,
+                                    subject: "URGENT NEED: Blood Donation Required",
+                                    message: `URGENT: Your blood group ${requestedBloodGroup} is in critical demand at ${orgData.organisationName}${orgCity ? ` in ${orgCity}` : ''}! We urgently need donations. Please rush to ${orgData.organisationName} to donate and help save lives.`
+                                });
+                            }
+                        }
+
+                        // Log to DB
+                        const Notification = require("../models/notificationModel");
+                        await Notification.create({
+                            type: "urgent",
+                            targetBloodGroup: requestedBloodGroup,
+                            message: `Urgent demand alert sent to ${eligibleDonors.length} donors.`,
+                            status: eligibleDonors.length > 0 ? "success" : "simulated",
+                            deliveryChannels: ["email"],
+                        });
+                    } catch (alertError) {
+                        console.error("Failed to send urgent donor alerts:", alertError);
+                        // Do not crash the inventory transaction
                     }
                 }
             } else if (sender?.role === "hospital") {
@@ -425,6 +493,63 @@ const createInventoryController = async (req, res) => {
         //save record
         const inventory = new inventoryModel(req.body);
         await inventory.save();
+
+        // --- UPDATE DONOR'S LAST DONATION DATE ---
+        if (inventoryType === "in" && user?.role === "donor") {
+            user.lastDonationDate = new Date();
+            await user.save();
+        }
+
+        // --- URGENCY PROTOCOL FOR ORGANISATION ADMIN ---
+        if (inventoryType === "out") {
+            try {
+                const requestedBloodGroup = req.body.bloodGroup;
+                const organisationId = new mongoose.Types.ObjectId(req.body.organisation);
+                
+                // Calculate new remaining stock
+                const totalInAgg = await inventoryModel.aggregate([
+                    { $match: { organisation: organisationId, inventoryType: "in", bloodGroup: requestedBloodGroup } },
+                    { $group: { _id: null, total: { $sum: "$quantity" } } }
+                ]);
+                const totalOutAgg = await inventoryModel.aggregate([
+                    { $match: { organisation: organisationId, inventoryType: "out", bloodGroup: requestedBloodGroup } },
+                    { $group: { _id: null, total: { $sum: "$quantity" } } }
+                ]);
+                const remainingStock = (totalInAgg[0]?.total || 0) - (totalOutAgg[0]?.total || 0);
+
+                if (remainingStock < 3) {
+                    const orgUser = await userModel.findById(organisationId);
+                    if (orgUser && orgUser.email) {
+                        const now = new Date();
+                        const alertHistory = orgUser.alertHistory || new Map();
+                        const lastAlert = alertHistory.get(requestedBloodGroup);
+
+                        let shouldSend = true;
+                        if (lastAlert) {
+                            const hoursSinceLastAlert = (now - new Date(lastAlert)) / (1000 * 60 * 60);
+                            if (hoursSinceLastAlert < 24) {
+                                shouldSend = false;
+                            }
+                        }
+
+                        if (shouldSend) {
+                            await sendNotification({
+                                toEmail: orgUser.email,
+                                subject: `CRITICAL: ${requestedBloodGroup} Stock Depleted!`,
+                                message: `CRITICAL ALERT: Your current stock of ${requestedBloodGroup} has dropped to ${remainingStock} units. Please take immediate action.`
+                            });
+
+                            alertHistory.set(requestedBloodGroup, now);
+                            orgUser.alertHistory = alertHistory;
+                            await orgUser.save();
+                        }
+                    }
+                }
+            } catch (urgencyError) {
+                console.error("Failed to process urgency protocol:", urgencyError);
+            }
+        }
+
         return res.status(201).send({
             success: true,
             message: "New Blood Record Added Successfully",
@@ -442,17 +567,31 @@ const createInventoryController = async (req, res) => {
 // GET ALL BLOOD RECORDS
 const getInventoryController = async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const totalRecords = await inventoryModel.countDocuments({
+            organisation: req.userId,
+        });
+
         const inventory = await inventoryModel
             .find({
                 organisation: req.userId,
             })
             .populate("donor")
             .populate("hospital")
-            .sort({ createdAt: -1 });;
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
         return res.status(200).send({
             success: true,
-            messaage: "get all records successfully",
+            message: "get all records successfully",
             inventory,
+            totalRecords,
+            totalPages: Math.ceil(totalRecords / limit),
+            currentPage: page
         });
     } catch (error) {
         console.log(error);
@@ -467,17 +606,29 @@ const getInventoryController = async (req, res) => {
 // GET Hospital BLOOD RECORDS
 const getInventoryHospitalController = async (req, res) => {
     try {
+        const page = parseInt(req.body.page) || 1;
+        const limit = parseInt(req.body.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const totalRecords = await inventoryModel.countDocuments(req.body.filters);
+
         const inventory = await inventoryModel
             .find(req.body.filters)
             .populate("donor")
             .populate("hospital")
             .populate("organisation")
             .populate("sender")
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
         return res.status(200).send({
             success: true,
-            messaage: "get hospital comsumer records successfully",
+            message: "get hospital consumer records successfully",
             inventory,
+            totalRecords,
+            totalPages: Math.ceil(totalRecords / limit),
+            currentPage: page
         });
     } catch (error) {
         console.log(error);
@@ -493,16 +644,30 @@ const getInventoryHospitalController = async (req, res) => {
 const getDonorsController = async (req, res) => {
     try {
         const organisation = req.userId;
-        //find donars
-        const donorId = await inventoryModel.distinct("donor", {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // find donors
+        const donorIds = await inventoryModel.distinct("donor", {
             organisation,
         });
-        const donors = await userModel.find({ _id: { $in: donorId } });
+
+        const totalRecords = await userModel.countDocuments({ _id: { $in: donorIds } });
+
+        const donors = await userModel
+            .find({ _id: { $in: donorIds } })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
 
         return res.status(200).send({
             success: true,
             message: "Donor Record Fetched Successfully",
             donors,
+            totalRecords,
+            totalPages: Math.ceil(totalRecords / limit),
+            currentPage: page
         });
     } catch (error) {
         console.log(error);
@@ -517,18 +682,31 @@ const getDonorsController = async (req, res) => {
 const getHospitalController = async (req, res) => {
     try {
         const organisation = req.userId;
-        //GET HOSPITAL ID
-        const hospitalId = await inventoryModel.distinct("hospital", {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // GET HOSPITAL ID
+        const hospitalIds = await inventoryModel.distinct("hospital", {
             organisation,
         });
-        //FIND HOSPITAL
-        const hospitals = await userModel.find({
-            _id: { $in: hospitalId },
-        });
+
+        const totalRecords = await userModel.countDocuments({ _id: { $in: hospitalIds } });
+
+        // FIND HOSPITAL
+        const hospitals = await userModel
+            .find({ _id: { $in: hospitalIds } })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
         return res.status(200).send({
             success: true,
             message: "Hospitals Data Fetched Successfully",
             hospitals,
+            totalRecords,
+            totalPages: Math.ceil(totalRecords / limit),
+            currentPage: page
         });
     } catch (error) {
         console.log(error);
@@ -609,17 +787,105 @@ const getRecentInventoryController = async (req, res) => {
     }
 };
 
+// GET LIVE CITY RADAR FOR DONOR
+const getCityRadarController = async (req, res) => {
+    try {
+        const donor = await userModel.findById(req.userId);
+        if (!donor || donor.role !== "donor") {
+            return res.status(403).send({ success: false, message: "Only donors can access the city radar." });
+        }
+        
+        const { city, bloodGroup } = donor;
+        if (!city || !bloodGroup) {
+            return res.status(200).send({ 
+                success: true, 
+                message: "Please update your profile with your city and blood group to use the radar.", 
+                radarData: [],
+                city: city || "Unknown",
+                bloodGroup: bloodGroup || "Unknown"
+            });
+        }
+
+        // Aggregate stock for this specific blood group across ALL organizations
+        const stockData = await inventoryModel.aggregate([
+            { $match: { bloodGroup: bloodGroup } },
+            {
+                $group: {
+                    _id: "$organisation",
+                    totalIn: { $sum: { $cond: [{ $eq: ["$inventoryType", "in"] }, "$quantity", 0] } },
+                    totalOut: { $sum: { $cond: [{ $eq: ["$inventoryType", "out"] }, "$quantity", 0] } }
+                }
+            },
+            {
+                $project: {
+                    organisation: "$_id",
+                    availableStock: { $subtract: ["$totalIn", "$totalOut"] }
+                }
+            },
+            {
+                $match: { availableStock: { $lt: 5 } } // Less than 5 units (Critical Need)
+            }
+        ]);
+
+        // Filter organizations that are in the SAME city
+        const radarData = [];
+        for (const stock of stockData) {
+            const org = await userModel.findById(stock.organisation);
+            if (org && org.city && org.city.trim().toLowerCase() === city.trim().toLowerCase()) {
+                radarData.push({
+                    _id: org._id,
+                    organisationName: org.organisationName || org.hospitalName || "Medical Facility",
+                    address: org.address,
+                    phone: org.phone,
+                    email: org.email,
+                    availableStock: Math.max(0, stock.availableStock),
+                });
+            }
+        }
+
+        return res.status(200).send({
+            success: true,
+            radarData,
+            city,
+            bloodGroup
+        });
+    } catch (error) {
+        console.error("City Radar Error:", error);
+        return res.status(500).send({
+            success: false,
+            message: "Error fetching city radar data",
+            error
+        });
+    }
+};
+
 // GET BLOOD RECEIVED BY HOSPITAL (from donors and other hospitals)
 const getInventoryReceivedController = async (req, res) => {
     try {
         const hospital = req.userId;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Count total records for pagination
+        const totalCountResult = await inventoryModel.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { inventoryType: "in", organisation: new mongoose.Types.ObjectId(hospital) },
+                        { inventoryType: "out", hospital: new mongoose.Types.ObjectId(hospital) },
+                    ],
+                },
+            },
+            { $count: "total" }
+        ]);
+        const totalRecords = totalCountResult[0]?.total || 0;
+
         const inventory = await inventoryModel.aggregate([
             {
                 $match: {
                     $or: [
-                        // Blood received from donors (organisations receive from donors)
                         { inventoryType: "in", organisation: new mongoose.Types.ObjectId(hospital) },
-                        // Blood received from other hospitals (hospital-to-hospital transfer)
                         { inventoryType: "out", hospital: new mongoose.Types.ObjectId(hospital) },
                     ],
                 },
@@ -681,11 +947,16 @@ const getInventoryReceivedController = async (req, res) => {
                 },
             },
             { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
         ]);
         return res.status(200).send({
             success: true,
             message: "Blood Received Records Fetched",
             inventory,
+            totalRecords,
+            totalPages: Math.ceil(totalRecords / limit),
+            currentPage: page
         });
     } catch (error) {
         console.log(error);
@@ -834,6 +1105,7 @@ module.exports = {
     getInventoryHospitalController,
     getRecentInventoryController,
     getInventoryReceivedController,
+    getCityRadarController,
     bulkImportInventoryController,
     getExpiringInventoryController,
 };

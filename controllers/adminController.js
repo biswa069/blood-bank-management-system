@@ -5,13 +5,23 @@ const mongoose = require("mongoose");
 //GET DONOR LIST
 const getDonorsListController = async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const totalRecords = await userModel.countDocuments({ role: "donor" });
+
         const donorData = await userModel
             .find({ role: "donor" })
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
 
         return res.status(200).send({
             success: true,
-            Toatlcount: donorData.length,
+            totalRecords,
+            totalPages: Math.ceil(totalRecords / limit),
+            currentPage: page,
             message: "Donar List Fetched Successfully",
             donorData,
         });
@@ -27,13 +37,23 @@ const getDonorsListController = async (req, res) => {
 //GET HOSPITAL LIST
 const getHospitalListController = async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const totalRecords = await userModel.countDocuments({ role: "hospital" });
+
         const hospitalData = await userModel
             .find({ role: "hospital" })
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
 
         return res.status(200).send({
             success: true,
-            Toatlcount: hospitalData.length,
+            totalRecords,
+            totalPages: Math.ceil(totalRecords / limit),
+            currentPage: page,
             message: "HOSPITAL List Fetched Successfully",
             hospitalData,
         });
@@ -49,13 +69,23 @@ const getHospitalListController = async (req, res) => {
 //GET ORG LIST
 const getOrgListController = async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const totalRecords = await userModel.countDocuments({ role: "organisation" });
+
         const orgData = await userModel
             .find({ role: "organisation" })
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
 
         return res.status(200).send({
             success: true,
-            Toatlcount: orgData.length,
+            totalRecords,
+            totalPages: Math.ceil(totalRecords / limit),
+            currentPage: page,
             message: "ORG List Fetched Successfully",
             orgData,
         });

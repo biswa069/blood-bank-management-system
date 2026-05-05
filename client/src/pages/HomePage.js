@@ -322,6 +322,8 @@ import Layout from "../components/shared/Layout/Layout";
 import LayoutNoSidebar from "../components/shared/Layout/LayoutNoSidebar";
 import Modal from "../components/shared/modal/Modal";
 import BulkImportModal from "../components/shared/modal/BulkImportModal";
+import EligibilityCard from "../components/EligibilityCard";
+import LiveCityRadar from "../components/LiveCityRadar";
 import API from "../services/API";
 import moment from "moment";
 
@@ -329,6 +331,9 @@ const HomePage = () => {
     const { loading, error, user } = useSelector((state) => state.auth);
     const [data, setData] = useState([]);
     const [donorData, setDonorData] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [limit] = useState(10); // Records per page
     const navigate = useNavigate();
 
     // Handle Redux Errors properly without native alerts
@@ -339,11 +344,13 @@ const HomePage = () => {
     }, [error]);
 
     //get function for org/hospital/admin
-    const getBloodRecords = async () => {
+    const getBloodRecords = async (page = 1) => {
         try {
-            const { data } = await API.get("/inventory/get-inventory");
+            const { data } = await API.get(`/inventory/get-inventory?page=${page}&limit=${limit}`);
             if (data?.success) {
                 setData(data?.inventory);
+                setTotalPages(data?.totalPages);
+                setCurrentPage(data?.currentPage);
             }
         } catch (error) {
             console.log(error);
@@ -352,16 +359,20 @@ const HomePage = () => {
     };
 
     //get donor records for donation history
-    const getDonorRecords = async () => {
+    const getDonorRecords = async (page = 1) => {
         try {
             const { data } = await API.post("/inventory/get-inventory-hospital", {
                 filters: {
                     inventoryType: "in",
                     donor: user?._id,
                 },
+                page,
+                limit
             });
             if (data?.success) {
                 setDonorData(data?.inventory);
+                setTotalPages(data?.totalPages);
+                setCurrentPage(data?.currentPage);
             }
         } catch (error) {
             console.log(error);
@@ -371,11 +382,12 @@ const HomePage = () => {
 
     useEffect(() => {
         if (user?.role !== "donor") {
-            getBloodRecords();
+            getBloodRecords(1);
         }
         if (user?.role === "donor") {
-            getDonorRecords();
+            getDonorRecords(1);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     useEffect(() => {
@@ -384,6 +396,15 @@ const HomePage = () => {
         }
     }, [user, navigate]);
 
+    const handlePageChange = (page) => {
+        if (page < 1 || page > totalPages) return;
+        if (user?.role === "donor") {
+            getDonorRecords(page);
+        } else {
+            getBloodRecords(page);
+        }
+    };
+
     if (user?.role === "donor") {
         return (
             <LayoutNoSidebar>
@@ -391,6 +412,15 @@ const HomePage = () => {
                     <Spinner />
                 ) : (
                     <div className="container mt-4">
+                        {/* Biological Eligibility Card */}
+                        <EligibilityCard
+                            lastDonationDate={user?.lastDonationDate}
+                            bloodGroup={user?.bloodGroup}
+                        />
+
+                        {/* Live City Radar */}
+                        <LiveCityRadar />
+                        
                         <h4 className="mb-4">My Donation History</h4>
                         <table className="table">
                             <thead>
@@ -414,6 +444,26 @@ const HomePage = () => {
                                 ))}
                             </tbody>
                         </table>
+                        {/* Pagination for Donor */}
+                        {totalPages > 1 && (
+                            <nav className="d-flex justify-content-center align-items-center mt-4 gap-3">
+                                <button 
+                                    className="btn btn-outline-danger px-4" 
+                                    disabled={currentPage === 1}
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                >
+                                    <i className="fa-solid fa-arrow-left me-2"></i> Previous
+                                </button>
+                                <span className="fw-bold text-muted">Page {currentPage} of {totalPages}</span>
+                                <button 
+                                    className="btn btn-outline-danger px-4" 
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                >
+                                    Next <i className="fa-solid fa-arrow-right ms-2"></i>
+                                </button>
+                            </nav>
+                        )}
                     </div>
                 )}
             </LayoutNoSidebar>
@@ -480,8 +530,30 @@ const HomePage = () => {
                                 </tbody>
                             </table>
                         </div>
-                        <Modal onRecordAdded={getBloodRecords} />
-                        <BulkImportModal onImportComplete={getBloodRecords} />
+
+                        {/* Pagination for Org/Hospital */}
+                        {totalPages > 1 && (
+                            <nav className="d-flex justify-content-center align-items-center mt-4 mb-4 gap-3">
+                                <button 
+                                    className="btn btn-outline-danger px-4" 
+                                    disabled={currentPage === 1}
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                >
+                                    <i className="fa-solid fa-arrow-left me-2"></i> Previous
+                                </button>
+                                <span className="fw-bold text-muted">Page {currentPage} of {totalPages}</span>
+                                <button 
+                                    className="btn btn-outline-danger px-4" 
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                >
+                                    Next <i className="fa-solid fa-arrow-right ms-2"></i>
+                                </button>
+                            </nav>
+                        )}
+
+                        <Modal onRecordAdded={() => getBloodRecords(1)} />
+                        <BulkImportModal onImportComplete={() => getBloodRecords(1)} />
                     </div>
                 </>
             )}

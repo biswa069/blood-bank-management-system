@@ -19,4 +19,8 @@ router.get("/bloodGroups-data-hospital", authMiddleware, bloodGroupDetailsHospit
 //GET AI FORECAST
 router.post("/ai-forecast", authMiddleware, getAIForecastController);
 
+//GET DASHBOARD ANALYTICS
+const { getDashboardAnalyticsController } = require("../controllers/analyticsController");
+router.get("/dashboard", authMiddleware, getDashboardAnalyticsController);
+
 module.exports = router;

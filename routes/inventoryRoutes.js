@@ -8,6 +8,7 @@ const { createInventoryController, getInventoryController, getDonorsController, 
     getInventoryReceivedController,
     bulkImportInventoryController,
     getExpiringInventoryController,
+    getCityRadarController,
 } = require("../controllers/inventoryController");
 const multer = require("multer");
 
@@ -61,5 +62,8 @@ router.post(
 );
 // GET EXPIRING SOON INVENTORY
 router.get("/expiring-soon", authMiddleware, getExpiringInventoryController);
+
+// GET LIVE CITY RADAR
+router.get("/city-radar", authMiddleware, getCityRadarController);
 
 module.exports = router;

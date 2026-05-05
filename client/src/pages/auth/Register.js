@@ -12,13 +12,17 @@ const Register = () => {
             {loading ? (
                 <Spinner />
             ) : (
-                <div className="row g-0">
-                    <div className="col-md-8 form-banner ">
+                <div className="auth-page">
+                    <div className="auth-banner">
                         <img src="./assets/images/banner2.jpg" alt="registerImage" />
+                        <div className="auth-banner-overlay">
+                            <h1>Join Us Today</h1>
+                            <p>Register to save lives by managing blood donations efficiently.</p>
+                        </div>
                     </div>
-                    <div className="col-md-4 form-container">
+                    <div className="auth-form-section">
                         <Form
-                            formTitle={"Register"}
+                            formTitle={"Create Account"}
                             submitBtn={"Register"}
                             formType={"register"}
                         />

@@ -10,6 +10,12 @@ dotenv.config();
 
 connectDB();
 
+const { initCronJobs } = require('./utils/cronJobs');
+initCronJobs();
+
+const { initWastageCronJob } = require('./utils/wastagePreventionCron');
+initWastageCronJob();
+
 const app = express()
 
 //middlewares
@@ -23,6 +29,7 @@ app.use("/api/v1/inventory", require("./routes/inventoryRoutes"));
 app.use("/api/v1/analytics", require("./routes/analyticsRoutes"));
 app.use("/api/v1/admin", require("./routes/adminRoutes"));
 app.use("/api/v1/request", require("./routes/requestRoutes"));
+app.use("/api/v1/notifications", require("./routes/notificationRoutes"));
 
 const PORT = process.env.PORT || 8080;
 
@@ -54,6 +61,7 @@ cron.schedule('0 3 * * *', async () => {
     console.log('Running nightly FEFO Expiry Alert cron job...');
     try {
         const inventoryModel = require('./models/inventoryModel');
+        const { sendWastageWarning } = require('./services/notificationService');
         const fiveDaysFromNow = new Date();
         fiveDaysFromNow.setDate(fiveDaysFromNow.getDate() + 5);
 
@@ -76,6 +84,9 @@ cron.schedule('0 3 * * *', async () => {
         if (expiringUnits.length > 0) {
             const alerts = expiringUnits.map(unit => `${unit.totalExpiring} units of ${unit._id}`);
             console.log(`🚨 ALERT: ${alerts.join(' and ')} are expiring within 5 days!`);
+            
+            // Send email warning to organisations and hospitals
+            await sendWastageWarning(expiringUnits);
         } else {
             console.log('✅ No blood units are expiring within the next 5 days.');
         }

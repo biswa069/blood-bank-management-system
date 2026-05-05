@@ -61,6 +61,21 @@ const userSchema = new mongoose.Schema(
             },
             enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
         },
+        city: {
+            type: String,
+            required: false,
+        },
+        lastDonationDate: {
+            type: Date,
+        },
+        lastAlertSentAt: {
+            type: Date,
+        },
+        alertHistory: {
+            type: Map,
+            of: Date,
+            default: {}
+        },
     },
     { timestamps: true }
 );

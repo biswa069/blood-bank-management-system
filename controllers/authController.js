@@ -106,5 +106,103 @@ const currentUserController = async (req, res) => {
     }
 };
 
+// Update user profile
+const updateProfileController = async (req, res) => {
+    try {
+        const user = await userModel.findById(req.userId);
+        if (!user) {
+            return res.status(404).send({
+                success: false,
+                message: "User not found",
+            });
+        }
 
-module.exports = { registerController, loginController, currentUserController };
+        const { name, organisationName, hospitalName, email, phone, address, city, currentPassword, newPassword } = req.body;
+
+        // Update basic fields if provided
+        if (name) user.name = name;
+        if (organisationName) user.organisationName = organisationName;
+        if (hospitalName) user.hospitalName = hospitalName;
+        if (email) user.email = email;
+        if (phone) user.phone = phone;
+        if (address) user.address = address;
+        if (city !== undefined) user.city = city;
+
+        // Handle password change
+        if (currentPassword && newPassword) {
+            const isMatch = await bcrypt.compare(currentPassword, user.password);
+            if (!isMatch) {
+                return res.status(400).send({
+                    success: false,
+                    message: "Current password is incorrect",
+                });
+            }
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(newPassword, salt);
+        }
+
+        await user.save();
+
+        return res.status(200).send({
+            success: true,
+            message: "Profile updated successfully",
+            user,
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).send({
+            success: false,
+            message: "Error updating profile",
+            error,
+        });
+    }
+};
+
+// Update password (separate endpoint)
+const updatePasswordController = async (req, res) => {
+    try {
+        const user = await userModel.findById(req.userId);
+        if (!user) {
+            return res.status(404).send({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).send({
+                success: false,
+                message: "Both current and new passwords are required",
+            });
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).send({
+                success: false,
+                message: "Current password is incorrect",
+            });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+        await user.save();
+
+        return res.status(200).send({
+            success: true,
+            message: "Password updated successfully. Please log in again.",
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).send({
+            success: false,
+            message: "Error updating password",
+            error,
+        });
+    }
+};
+
+
+module.exports = { registerController, loginController, currentUserController, updateProfileController, updatePasswordController };

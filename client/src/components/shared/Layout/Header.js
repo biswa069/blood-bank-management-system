@@ -60,6 +60,13 @@ const Header = () => {
                                 </Link>
                             </li>
                         )}
+                        {user?.role === "donor" && location.pathname !== "/settings" && (
+                            <li className="nav-item mx-3">
+                                <Link to="/settings" className="nav-link">
+                                    <i className="fa-solid fa-gear me-1"></i> Settings
+                                </Link>
+                            </li>
+                        )}
                         <li className="nav-item mx-3 d-flex align-items-center">
                             <button
                                 className="btn btn-outline-secondary border-0 p-2 d-flex align-items-center justify-content-center"

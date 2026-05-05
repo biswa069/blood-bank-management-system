@@ -160,6 +160,9 @@ import HospitalList from "./pages/Admin/HospitalList";
 import OrgList from "./pages/Admin/OrgList";
 import AdminHome from "./pages/Admin/AdminHome";
 import AdminEntityAnalytics from "./pages/Admin/AdminEntityAnalytics";
+import NotificationLogs from "./pages/Admin/NotificationLogs";
+import BroadcastPage from "./pages/BroadcastPage";
+import SettingsPage from "./pages/SettingsPage";
 
 function App() {
   const { user } = useSelector((state) => state.auth);
@@ -214,6 +217,14 @@ function App() {
           }
         />
         <Route
+          path="/notification-logs"
+          element={
+            <ProtectedRoute>
+              <NotificationLogs />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/entity-analytics"
           element={
             <ProtectedRoute>
@@ -226,6 +237,22 @@ function App() {
           element={
             <ProtectedRoute>
               <Hospitals />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/broadcast"
+          element={
+            <ProtectedRoute>
+              <BroadcastPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />

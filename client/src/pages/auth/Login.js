@@ -12,13 +12,17 @@ const Login = () => {
             {loading ? (
                 <Spinner />
             ) : (
-                <div className="row g-0">
-                    <div className="col-md-8 form-banner">
+                <div className="auth-page">
+                    <div className="auth-banner">
                         <img src="./assets/images/banner1.jpg" alt="loginImage" />
+                        <div className="auth-banner-overlay">
+                            <h1>Welcome Back</h1>
+                            <p>Sign in to manage your blood bank operations efficiently.</p>
+                        </div>
                     </div>
-                    <div className="col-md-4 form-container">
+                    <div className="auth-form-section">
                         <Form
-                            formTitle={"Login Page"}
+                            formTitle={"Sign In"}
                             submitBtn={"Login"}
                             formType={"login"}
                         />
