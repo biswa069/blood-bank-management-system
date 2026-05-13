@@ -246,12 +246,22 @@ const getAIForecastController = async (req, res) => {
 // GET DASHBOARD ANALYTICS
 const getDashboardAnalyticsController = async (req, res) => {
     try {
-        const bloodGroup = req.query.bloodGroup || "All Groups";
+        // 1. Sanitize the blood group string (+ often turns into space in URLs)
+        let rawBloodGroup = req.query.bloodGroup || "All Groups";
+        
+        // Ensure "All Groups" and "All_Groups" bypass the sanitization
+        let bloodGroup = rawBloodGroup;
+        if (rawBloodGroup !== "All Groups" && rawBloodGroup !== "All_Groups") {
+            bloodGroup = rawBloodGroup.replace(" ", "+");
+        }
+        
         const days = parseInt(req.query.days) || 7;
         const user = await userModel.findById(req.userId);
         
         let bloodGroupsToFetch = ["O+", "O-", "AB+", "AB-", "A+", "A-", "B+", "B-"];
-        if (bloodGroup !== "All Groups") {
+        
+        // If it's a specific blood group, only fetch that one
+        if (bloodGroup !== "All Groups" && bloodGroup !== "All_Groups") {
             bloodGroupsToFetch = [bloodGroup];
         }
 

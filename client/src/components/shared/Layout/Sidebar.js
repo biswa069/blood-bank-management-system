@@ -22,6 +22,12 @@ const Sidebar = () => {
                             <Link to="/">Inventory</Link>
                         </div>
                         <div
+                            className={`menu-item ${location.pathname === "/analytics" && "active"}`}
+                        >
+                            <i className="fa-solid fa-chart-bar"></i>
+                            <Link to="/analytics">Analytics</Link>
+                        </div>
+                        <div
                             className={`menu-item ${location.pathname === "/donor" && "active"
                                 }`}
                         >
@@ -41,6 +47,13 @@ const Sidebar = () => {
                         >
                             <i className="fa-solid fa-envelope"></i>
                             <Link to="/broadcast">Email Centre</Link>
+                        </div>
+                        <div
+                            className={`menu-item ${location.pathname === "/hospital-fl" && "active"
+                                }`}
+                        >
+                            <i className="fa-solid fa-network-wired"></i>
+                            <Link to="/hospital-fl">Local AI Node Interface</Link>
                         </div>
                     </>
                 )}
@@ -74,6 +87,13 @@ const Sidebar = () => {
                             <i className="fa-solid fa-bell"></i>
                             <Link to="/notification-logs">Notification Logs</Link>
                         </div>
+                        <div
+                            className={`menu-item ${location.pathname === "/admin-fl" && "active"
+                                }`}
+                        >
+                            <i className="fa-solid fa-globe"></i>
+                            <Link to="/admin-fl">Global Federated Network</Link>
+                        </div>
                     </>
                 )}
                 {user?.role === "hospital" && (
@@ -101,6 +121,23 @@ const Sidebar = () => {
                     >
                         <i className="fa-solid fa-envelope"></i>
                         <Link to="/broadcast">Email Centre</Link>
+                    </div>
+                )}
+                {user?.role === "hospital" && (
+                    <div
+                        className={`menu-item ${location.pathname === "/analytics" && "active"}`}
+                    >
+                        <i className="fa-solid fa-chart-bar"></i>
+                        <Link to="/analytics">Analytics</Link>
+                    </div>
+                )}
+                {user?.role === "hospital" && (
+                    <div
+                        className={`menu-item ${location.pathname === "/hospital-fl" && "active"
+                            }`}
+                    >
+                        <i className="fa-solid fa-network-wired"></i>
+                        <Link to="/hospital-fl">Local AI Node Interface</Link>
                     </div>
                 )}
                 {user?.role === "donor" && (

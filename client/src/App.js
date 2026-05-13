@@ -163,6 +163,8 @@ import AdminEntityAnalytics from "./pages/Admin/AdminEntityAnalytics";
 import NotificationLogs from "./pages/Admin/NotificationLogs";
 import BroadcastPage from "./pages/BroadcastPage";
 import SettingsPage from "./pages/SettingsPage";
+import AdminFLDashboard from "./pages/Admin/AdminFLDashboard";
+import HospitalNodeUI from "./pages/Dashboard/HospitalNodeUI";
 
 function App() {
   const { user } = useSelector((state) => state.auth);
@@ -232,6 +234,26 @@ function App() {
             </ProtectedRoute>
           }
         />
+        {user?.role === "admin" && (
+          <Route
+            path="/admin-fl"
+            element={
+              <ProtectedRoute>
+                <AdminFLDashboard />
+              </ProtectedRoute>
+            }
+          />
+        )}
+        {(user?.role === "hospital" || user?.role === "organisation") && (
+          <Route
+            path="/hospital-fl"
+            element={
+              <ProtectedRoute>
+                <HospitalNodeUI />
+              </ProtectedRoute>
+            }
+          />
+        )}
         <Route
           path="/hospital"
           element={

@@ -53,13 +53,7 @@ const Header = () => {
                                 </Link>
                             </li>
                         )}
-                        {location.pathname === "/" && user?.role !== "donor" && (
-                            <li className="nav-item mx-3">
-                                <Link to="/analytics" className="nav-link">
-                                    Analytics
-                                </Link>
-                            </li>
-                        )}
+
                         {user?.role === "donor" && location.pathname !== "/settings" && (
                             <li className="nav-item mx-3">
                                 <Link to="/settings" className="nav-link">

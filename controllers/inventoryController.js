@@ -1095,6 +1095,55 @@ const getExpiringInventoryController = async (req, res) => {
     }
 };
 
+// GET KPI STATS (for Dashboard Summary Cards - runs aggregations on entire dataset)
+const getKpiStatsController = async (req, res) => {
+    try {
+        const mongoose = require('mongoose');
+        const orgId = new mongoose.Types.ObjectId(req.userId);
+        const now = new Date();
+        const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        // 1. Total available units: SUM(in) - SUM(out) across all records
+        const [totalInAgg, totalOutAgg] = await Promise.all([
+            inventoryModel.aggregate([{ $match: { organisation: orgId, inventoryType: 'in' } }, { $group: { _id: null, total: { $sum: '$quantity' } } }]),
+            inventoryModel.aggregate([{ $match: { organisation: orgId, inventoryType: 'out' } }, { $group: { _id: null, total: { $sum: '$quantity' } } }]),
+        ]);
+        const totalUnits = Math.max(0, (totalInAgg[0]?.total || 0) - (totalOutAgg[0]?.total || 0));
+
+        // 2. Critical O- stock (current available)
+        const [oNegIn, oNegOut] = await Promise.all([
+            inventoryModel.aggregate([{ $match: { organisation: orgId, inventoryType: 'in', bloodGroup: 'O-' } }, { $group: { _id: null, total: { $sum: '$quantity' } } }]),
+            inventoryModel.aggregate([{ $match: { organisation: orgId, inventoryType: 'out', bloodGroup: 'O-' } }, { $group: { _id: null, total: { $sum: '$quantity' } } }]),
+        ]);
+        const oNegStock = Math.max(0, (oNegIn[0]?.total || 0) - (oNegOut[0]?.total || 0));
+
+        // 3. Count of bags expiring within 7 days that still have available stock
+        const expiringSoon = await inventoryModel.countDocuments({
+            organisation: orgId,
+            inventoryType: 'in',
+            availableQuantity: { $gt: 0 },
+            expiryDate: { $gt: now, $lte: sevenDaysFromNow }
+        });
+
+        // 4. Total units donated today
+        const donationsTodayAgg = await inventoryModel.aggregate([
+            { $match: { organisation: orgId, inventoryType: 'in', createdAt: { $gte: startOfToday } } },
+            { $group: { _id: null, total: { $sum: '$quantity' } } }
+        ]);
+        const donationsToday = donationsTodayAgg[0]?.total || 0;
+
+        return res.status(200).send({
+            success: true,
+            stats: { totalUnits, oNegStock, expiringSoon, donationsToday }
+        });
+    } catch (error) {
+        console.log('KPI Stats Error:', error);
+        return res.status(500).send({ success: false, message: 'Error fetching KPI stats', error });
+    }
+};
+
+
 module.exports = {
     createInventoryController,
     getInventoryController,
@@ -1108,4 +1157,5 @@ module.exports = {
     getCityRadarController,
     bulkImportInventoryController,
     getExpiringInventoryController,
-};
+    getKpiStatsController,
+};
