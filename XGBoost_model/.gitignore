@@ -1,0 +1,29 @@
+# --- 1. Python System Files (Junk) ---
+__pycache__/
+*.pyc
+
+# --- 2. Virtual Environment (NEVER upload this) ---
+venv/
+env/
+.env
+
+# --- 3. IDE Settings ---
+.vscode/
+.idea/
+
+# --- 4. Trained Models (Too large/binary for standard Git) ---
+# If you try to push these, GitHub might reject them if >100MB
+*.joblib
+models_linear/
+models_xgboost/
+models_xgboost_poisson/
+models_xgboost_advanced/
+models_final_tuned/
+models_hybrid/
+models/
+models_1/
+
+# --- 5. Data (Optional) ---
+# If your CSV is small (<50MB), you can upload it. 
+# If it is huge, uncomment the line below to ignore it.
+# daily_blood_demand.csv

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  fl-edge-node:
+    build: .
+    container_name: hospital_edge_node
+    environment:
+      # Pass Laptop 1's local IP address here. 
+      # 192.168.1.100 is a placeholder; you must replace it with the actual IPv4 of Laptop 1.
+      - SERVER_IP=${FLOWER_SERVER_IP:-192.168.1.100} 
+      - NODE_ID=hospital_node
+    ports:
+      - "8001:8001"
+    volumes:
+      # THE PRIVACY BRIDGE: 
+      # Mounts the local CSV from the laptop into the container as Read-Only (ro).
+      # Format: /path/on/laptop:/path/in/container:ro
+      - ./local_dataset.csv:/app/local_dataset.csv:ro
+    restart: unless-stopped
